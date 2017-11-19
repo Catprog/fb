@@ -1,8 +1,16 @@
 package fb.db;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Random;
+
+import javax.naming.Context;
+import javax.naming.InitialContext;
+import javax.naming.NamingException;
 
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
@@ -22,9 +30,17 @@ public class DB {
 	private static final SessionFactory sessionFactory;
 	static final Session session;
 	private static Object dbLock = new Object();
+	
+	private static Connection dbConnection = null;
+	
+	static PreparedStatement insertStoryStatment;
+	static PreparedStatement recentPageStatment;	
+	
 	static {
 		synchronized (dbLock) {
 			Configuration configuration = new Configuration().configure();
+			
+			
 			
 			configuration.addAnnotatedClass(DBEpisode.class);
 			configuration.addAnnotatedClass(DBRecents.class);
@@ -37,6 +53,32 @@ public class DB {
 			sessionFactory = configuration.buildSessionFactory(builder.build());
 			session = sessionFactory.openSession();
 		}
+		
+		Context initContext;
+		try {
+			initContext = new InitialContext();
+		
+			Context envContext  = (Context)initContext.lookup("java:/comp/env");
+			javax.sql.DataSource ds = (javax.sql.DataSource)envContext.lookup("jdbc/postgres");
+			
+			System.out.println( ds.toString());
+			
+			dbConnection = ds.getConnection(); 
+			
+
+            String stm = "INSERT INTO episode(episodeKey) VALUES(?)";
+            insertStoryStatment = dbConnection.prepareStatement(stm);
+            
+
+            stm = "SELECT episodekey  FROM episode WHERE timeadded > (current_date - (? || ' day' )::interval);";
+            recentPageStatment = dbConnection.prepareStatement(stm);
+            
+            
+		}catch (NamingException | SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
 	}
 	
 	static void closeSession() {
@@ -69,6 +111,52 @@ public class DB {
 	 */
 	public static Episode addEp(String id, String link, String title, String body, String authorId, Date date) throws DBException {
 		synchronized (dbLock) {
+			
+
+			System.out.println("Adding new page to PG");
+			
+
+			try {
+				
+				insertStoryStatment.setString(1, "1234");
+				
+				insertStoryStatment.executeUpdate();
+				
+				System.out.println("Adding 1234 to PG");
+				
+				recentPageStatment.setInt(1, 1);
+
+				ResultSet rs = recentPageStatment.executeQuery();
+
+				String out = "";
+				
+				while (rs.next()) {
+					out = out + " " + rs.getString("episodekey");
+				
+				}
+				
+				out = out + "\n";
+				recentPageStatment.setInt(1, 2);
+				
+				rs = recentPageStatment.executeQuery();
+				
+				while (rs.next()) {
+					out = out + " " + rs.getString("episodekey");
+					
+				
+				}
+				
+				System.out.println(out);
+				
+				
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+
+			System.out.println("Adding new page to PG Done");
+			
 			DBEpisode parent = session.get(DBEpisode.class, id);
 			DBRecents recents = session.get(DBRecents.class, 1);
 			DBUser author = session.get(DBUser.class, authorId);
@@ -92,6 +180,7 @@ public class DB {
 			child.setAuthor(author);
 			child.setParent(parent);
 			child.setDate(date);
+			
 			
 			author.getEpisodes().add(child);
 		

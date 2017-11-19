@@ -62,8 +62,23 @@ Configure Eclipse with Gradle and Eclipse WTP, add a Tomcat server, and run the 
 
 13. Modify domain.txt in the working directory to your domain (localhost:8080 should work here)
 
-14. Right click on project in Package Explorer > Run As > Run on Server
+14. Copy postgresql.lib into tomcat / lib
+
+15. Add 
+
+
+<Resource name="jdbc/postgres" auth="Container"
+          type="javax.sql.DataSource" driverClassName="org.postgresql.Driver"
+          url="jdbc:postgresql://127.0.0.1:5432/fb"
+          username="fbUser" password="fbPassword" maxActive="20" maxIdle="10"
+maxWait="-1"/>
+
+To the context.xml in servers in eclipse
+
+16. Right click on project in Package Explorer > Run As > Run on Server
     - (Optional) Check Always use this server when running this project
     - Finish
 
+	
+	
 The backend is now running. It can be accessed at http://localhost:8080/fb 
